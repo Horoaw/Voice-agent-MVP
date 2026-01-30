@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .recording { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background-color: #ef4444; } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-8">
+    <h1 class="text-4xl font-bold mb-8 text-blue-400">Local Voice Agent</h1>
+    
+    <div id="chat-window" class="w-full max-w-2xl bg-gray-800 rounded-lg p-6 mb-8 h-96 overflow-y-auto shadow-xl border border-gray-700">
+        <div class="text-gray-500 italic mb-4">Click and hold the button below to speak...</div>
+    </div>
+
+    <div class="flex flex-col items-center">
+        <button id="record-btn" class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+        </button>
+        <p id="status" class="mt-4 text-gray-400">Ready</p>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        const recordBtn = document.getElementById('record-btn');
+        const status = document.getElementById('status');
+        const chatWindow = document.getElementById('chat-window');
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    sendAudio(audioBlob);
+                    audioChunks = [];
+                };
+            });
+
+        recordBtn.onmousedown = () => {
+            if (mediaRecorder) {
+                mediaRecorder.start();
+                recordBtn.classList.add('recording');
+                status.innerText = "Recording...";
+            }
+        };
+
+        recordBtn.onmouseup = () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                status.innerText = "Processing...";
+            }
+        };
+
+        async function sendAudio(blob) {
+            const formData = new FormData();
+            formData.append('file', blob, 'input.wav');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                appendMessage('You', data.user, 'text-blue-300');
+                appendMessage('AI', data.bot, 'text-green-400');
+
+                if (data.audio) {
+                    const audio = new Audio(data.audio);
+                    audio.play();
+                }
+                status.innerText = "Ready";
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error occurred";
+            }
+        }
+
+        function appendMessage(sender, text, colorClass) {
+            const div = document.createElement('div');
+            div.className = `mb-4 ${colorClass}`;
+            div.innerHTML = `<span class="font-bold">${sender}:</span> ${text}`;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    </script>
+</body>
+</html>
