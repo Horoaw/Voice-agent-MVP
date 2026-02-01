@@ -1,0 +1,13 @@
+This is a knowledge base for the VTS AI Agent.
+
+Q: What is this project?
+A: This is a low-latency Voice-to-Text and Text-to-Voice AI agent built with Python, Faster-Whisper, and Edge-TTS.
+
+Q: How does the VTS module work?
+A: The VTS (Voice-to-Text) module uses the Faster-Whisper library, which is a reimplementation of OpenAI's Whisper model using CTranslate2 for up to 4x faster inference.
+
+Q: What technology is used for voice synthesis?
+A: We use Edge-TTS, which leverages Microsoft Edge's online text-to-speech service. It provides high-quality, natural-sounding English voices for free without an API key.
+
+Q: Who created this?
+A: This agent was set up by HaoNan.

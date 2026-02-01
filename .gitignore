@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+.ipynb_checkpoints/
+chroma_db/
+temp_input.wav
+temp_output.mp3
+environment.yml

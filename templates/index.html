@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time AI Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .listening { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .interim { color: #9ca3af; font-style: italic; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-8">
+    <h1 class="text-3xl font-bold mb-6 text-blue-400">Real-time AI Agent</h1>
+    
+    <div id="chat-window" class="w-full max-w-2xl bg-gray-800 rounded-lg p-6 mb-8 h-96 overflow-y-auto shadow-xl border border-gray-700 flex flex-col space-y-4">
+        <div class="text-gray-500 italic text-center text-sm">Tap the mic to start speaking...</div>
+    </div>
+
+    <!-- Live Preview Area -->
+    <div class="w-full max-w-2xl mb-4 min-h-[3rem]">
+        <p id="live-text" class="text-xl text-yellow-300 text-center font-mono"></p>
+    </div>
+
+    <div class="flex flex-col items-center">
+        <button id="mic-btn" class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-600 transition-all shadow-lg active:scale-95 border-2 border-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+        </button>
+        <p id="status" class="mt-4 text-gray-400 text-sm">Click mic to start</p>
+    </div>
+
+    <script>
+        const micBtn = document.getElementById('mic-btn');
+        const status = document.getElementById('status');
+        const chatWindow = document.getElementById('chat-window');
+        const liveText = document.getElementById('live-text');
+
+        // Web Speech API Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Your browser does not support Web Speech API. Please use Chrome or Edge.");
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; // Stop after one sentence
+        recognition.interimResults = true; // Show text as I speak
+        recognition.lang = 'en-US';
+
+        let isListening = false;
+
+        recognition.onstart = () => {
+            isListening = true;
+            micBtn.classList.add('listening');
+            micBtn.classList.replace('bg-gray-700', 'bg-red-600');
+            micBtn.classList.replace('border-gray-500', 'border-red-400');
+            status.innerText = "Listening...";
+            liveText.innerText = "";
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            micBtn.classList.remove('listening');
+            micBtn.classList.replace('bg-red-600', 'bg-gray-700');
+            micBtn.classList.replace('border-red-400', 'border-gray-500');
+            status.innerText = "Processing...";
+            
+            // If we have final text, send it
+            if (liveText.innerText.trim().length > 0) {
+                sendText(liveText.innerText);
+            } else {
+                status.innerText = "Ready";
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            liveText.innerText = finalTranscript || interimTranscript;
+        };
+
+        micBtn.onclick = () => {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        };
+
+        async function sendText(text) {
+            appendMessage('You', text, 'text-blue-300', 'text-right');
+            liveText.innerText = ""; // Clear preview
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                
+                appendMessage('AI', data.bot, 'text-green-400', 'text-left');
+
+                if (data.audio) {
+                    const audio = new Audio(data.audio);
+                    audio.play();
+                }
+                status.innerText = "Ready";
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error";
+            }
+        }
+
+        function appendMessage(sender, text, colorClass, alignClass) {
+            const div = document.createElement('div');
+            div.className = `max-w-[80%] p-3 rounded-lg ${alignClass === 'text-right' ? 'bg-blue-900 ml-auto' : 'bg-gray-700 mr-auto'}`;
+            div.innerHTML = `<div class="text-xs text-gray-400 mb-1">${sender}</div><div class="${colorClass}">${text}</div>`;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    </script>
+</body>
+</html>
